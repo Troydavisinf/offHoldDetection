@@ -1,7 +1,16 @@
 import streamlit as st
 import ollama
 from PIL import Image
-import io
+
+# Initialize session state
+if 'ocr_result' not in st.session_state:
+    st.session_state['ocr_result'] = None  # For storing OCR results
+
+if 'chat_history' not in st.session_state:
+    st.session_state['chat_history'] = []  # For storing chat history
+
+if 'user_input' not in st.session_state:
+    st.session_state['user_input'] = ""  # For storing current user input
 
 # Page configuration
 st.set_page_config(
@@ -12,55 +21,53 @@ st.set_page_config(
 )
 
 # Title and description in main area
-st.title("🐒 Troy's Sample Chat Bot")
+st.title("🐒 Troy's Sample Offline Chat Bot")
 
 # Add clear button to top right
 col1, col2 = st.columns([6, 1])
 with col2:
-    if st.button("Clear 🗑️"):
-        if 'ocr_result' in st.session_state:
-            del st.session_state['ocr_result']
+    if st.button("Force Clear 🗑️"):
+        st.session_state['ocr_result'] = None
+        st.session_state['chat_history'] = []
+        st.session_state['user_input'] = ""
         st.rerun()
 
-st.markdown('<p style="margin-top: -20px;">Ask anything!</p>',
-            unsafe_allow_html=True)
 st.markdown("---")
 
-# Move upload controls to sidebar
-with st.sidebar:
-    st.header("Write question here.")
-    uploaded_file = st.file_uploader("Choose an image...", type=['png', 'jpg', 'jpeg'])
+# Chat Input
+st.subheader("Ask Anything!")
+user_input = st.text_input(
+    "Enter your message:",
+    value=st.session_state['user_input'],  # Use the persisted value
+    key="user_input",
+    on_change=lambda: None  # Placeholder to avoid resetting on rerun
+)
 
-    if uploaded_file is not None:
-        # Display the uploaded image
-        image = Image.open(uploaded_file)
-        st.image(image, caption="Uploaded Image")
+# Process user input when it's not empty
+if user_input:
+    # Append user message to the chat history
+    st.session_state['chat_history'].append({"role": "user", "message": user_input})
 
-        if st.button("Extract Text 🔍", type="primary"):
-            with st.spinner("Processing image..."):
-                try:
-                    response = ollama.chat(
-                        model='llama3.2-vision',
-                        messages=[{
-                            'role': 'user',
-                            'content': """Analyze the text in the provided image. Extract all readable content
-                                        and present it in a structured Markdown format that is clear, concise, 
-                                        and well-organized. Ensure proper formatting (e.g., headings, lists, or
-                                        code blocks) as necessary to represent the content effectively.""",
-                            'images': [uploaded_file.getvalue()]
-                        }]
-                    )
-                    st.session_state['ocr_result'] = response.message.content
-                except Exception as e:
-                    st.error(f"Error processing image: {str(e)}")
+    try:
+        with st.spinner("Generating response..."):
+            response = ollama.chat(
+                model='llama3',
+                messages=st.session_state['chat_history']
+            )
+            # Append assistant's response to the chat history
+            st.session_state['chat_history'].append({"role": "assistant", "message": response.message.content})
 
-# Main content area for results
-if 'ocr_result' in st.session_state:
-    st.markdown(st.session_state['ocr_result'])
-else:
-    st.info("Upload an image and click 'Extract Text' to see the results here.")
+            # Clear the input field after processing
+            st.session_state['user_input'] = ""
+            st.experimental_rerun()  # Force rerun to refresh UI
+    except Exception as e:
+        st.error(f"Error during chat: {str(e)}")
 
-# Footer
+# Display Chat History
+for chat in st.session_state['chat_history']:
+    if chat['role'] == "user":
+        st.markdown(f"**You:** {chat['message']}")
+    else:
+        st.markdown(f"**Bot:** {chat['message']}")
+
 st.markdown("---")
-st.markdown(
-    "Made with ❤️ using Llama Vision Model2 | [Report an Issue](https://github.com/patchy631/ai-engineering-hub/issues)")
