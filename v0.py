@@ -48,17 +48,17 @@ def real_time_transcription():
                     print(word) # Each word print out
                     transcription_buffer.append(" ") # Adds spaces after each word or no word, to ensure silence is valued
 
-                if time.time()-last_flush_time >= 3.0:
+                if time.time()-last_flush_time >= 4.0:
                     threeText = " ".join(transcription_buffer)
-                    print(threeText)
+                    # print(threeText)
 
                     # Reset buffer & timer
                     transcription_buffer = []
                     last_flush_time = time.time()
 
-
+                    print(threeText)
                     response = ollama.chat(
-                        model='llama3.2',
+                        model='llama3.1',
                         messages=[{
                             'role': 'user',
                             'content': """Your job is to take in a transcription of one end of a phone """ +
