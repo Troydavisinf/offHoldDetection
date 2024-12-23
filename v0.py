@@ -56,6 +56,9 @@ def real_time_transcription():
                     transcription_buffer = []
                     last_flush_time = time.time()
 
+                    if threeText == "":  # Check for silence
+                        threeText = "I'm not here"
+
                     print(threeText)
                     response = ollama.chat(
                         model='llama3.1',
