@@ -1,3 +1,6 @@
+# This version has a lot of issues with accuracy
+# v1 has improved transcription and detection
+
 import time
 import sounddevice as sd
 from faster_whisper import WhisperModel
