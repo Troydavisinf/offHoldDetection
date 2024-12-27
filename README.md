@@ -1,6 +1,6 @@
 # offHoldDetection
 
-The following repository contains the script to live transcribe using the faster_whisper AI model and then feed it to an ollama model (llama3.1) to detect whether or not there is someone on the phone or not.
+The following repository contains the script to live transcribe using the faster_whisper AI model and then feed it to an ollama model (llama3.1 in this case) to detect whether or not there is someone on the phone or not.
 
 <br />
 
