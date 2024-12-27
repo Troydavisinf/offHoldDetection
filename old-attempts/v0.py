@@ -1,26 +1,26 @@
-# This is the final python script that should work properly depending on RAM capabilities.
+# This version has a lot of issues with accuracy
+# v1 has improved transcription and detection
 
 import time
 import sounddevice as sd
 from faster_whisper import WhisperModel
 import numpy as np
 import ollama
+from pyexpat.errors import messages
 
-def is_silent(audio, threshold=0.005):  # checks if audio is near silent
+
+def is_silent(audio, threshold=0.005): # checks if audio is near silent
     energy = np.sqrt(np.mean(audio ** 2))
     return energy < threshold
 
 def real_time_transcription():
     # Load the Whisper model
-    model = WhisperModel("small.en", device="cuda", compute_type="float16")
+    model = WhisperModel("tiny", device="cuda", compute_type="float16")
     sample_rate = 16000  # hz
     chunk_duration = 2  # Duration of each recording chunk in seconds
     chunk_size = int(sample_rate * chunk_duration)
-    detectionCount = 1
 
-    print("Transcription & Detection Started")
-    print("=================================\n")
-
+    print("Good to go\n")
     transcription_buffer = []
     last_flush_time = time.time()
 
@@ -31,25 +31,27 @@ def real_time_transcription():
             sd.wait()  # Wait until recording is finished
 
             # Convert audio to 1D NumPy array
-            audio_chunk = audio_chunk.flatten()
+            audio_chunk = audio_chunk.squeeze()
 
-            # Check if the chunk is silent
+            # Ignore silent chunks
             if is_silent(audio_chunk):
-                # print("silence detected")
-                transcription_buffer.append("...")
+                print("Silence Detected, will not be passed to AI")
+                continue
 
             # Transcribe audio
             segments, _ = model.transcribe(audio_chunk, language="en")
 
+            # Print each word on a new line
             for segment in segments:
                 words = segment.text.split()
 
                 transcription_buffer.extend(words)
 
-                # for word in words:
-                #     print(word)  # Each word print out
+                for word in words:
+                    print(word) # Each word print out
+                    transcription_buffer.append(" ") # Adds spaces after each word or no word, to ensure silence is valued
 
-                if time.time() - last_flush_time >= 3:
+                if time.time()-last_flush_time >= 4.0:
                     threeText = " ".join(transcription_buffer)
                     # print(threeText)
 
@@ -57,6 +59,10 @@ def real_time_transcription():
                     transcription_buffer = []
                     last_flush_time = time.time()
 
+                    if threeText == "":  # Check for silence
+                        threeText = "I'm not here"
+
+                    print(threeText)
                     response = ollama.chat(
                         model='llama3.1',
                         messages=[{
@@ -66,23 +72,18 @@ def real_time_transcription():
                                        """The transcription can have either silence (represented as spaces), """ +
                                        """words, or a mixture of both. Remember that it can be concluded that """ +
                                        """someone is on the phone if they are talking and potentially saying """ +
-                                       """things like \"Hello?\", \"Is there anyone there?\", and so on. Also keep """ +
+                                       """things like "Hello?", "Is there anyone there?", and so on. Also keep """ +
                                        """in mind they do not have to be saying only introductory phrases as """ +
                                        """stated before. If there is someone speaking, it can be assumed that """ +
                                        """someone is on the phone due to the transcription quality. After """ +
                                        """analyzing the transcription, please only say YES if there is someone """ +
                                        """on the phone and NO if there is no one on the phone. In other words, """ +
                                        """your response should only be one word long in length, as it is either """ +
-                                       """a YES or NO. Please also disregard phrases such as \"Thank you.\" and """ +
-                                       """\"Thank you for watching.\" as the transcription model is a little """ +
-                                       """faulty and often misinterpets silence. """ +
-                                       """Here is the following transcript:  """ + threeText
+                                       """a YES or NO. Here is the following transcript:  """ + threeText
                         }]
                     )
 
-                    curResponse = response['message']['content']
-                    print("Sample response " + str(detectionCount) + " | " + curResponse)
-                    detectionCount += 1
+                    print(response['message']['content'])
 
     except Exception as e:
         print(f"An error occurred: {e}")
